@@ -76,7 +76,7 @@ X_train, y_train = shuffle(X_train, y_train)
 
 import tensorflow as tf
 
-EPOCHS = 10
+EPOCHS = 25
 BATCH_SIZE = 128
 
 from tensorflow.contrib.layers import flatten
@@ -85,6 +85,7 @@ def LeNet(x):
     # Arguments used for tf.truncated_normal, randomly defines variables for the weights and biases for each layer
     mu = 0
     sigma = 0.1
+
     
     # SOLUTION: Layer 1: Convolutional. Input = 32x32x1. Output = 28x28x6.
     conv1_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 3, 6), mean = mu, stddev = sigma))
@@ -115,7 +116,7 @@ def LeNet(x):
     fc1_W = tf.Variable(tf.truncated_normal(shape=(400, 120), mean = mu, stddev = sigma))
     fc1_b = tf.Variable(tf.zeros(120))
     fc1   = tf.matmul(fc0, fc1_W) + fc1_b
-    
+
     # SOLUTION: Activation.
     fc1    = tf.nn.relu(fc1)
 
@@ -127,9 +128,9 @@ def LeNet(x):
     # SOLUTION: Activation.
     fc2    = tf.nn.relu(fc2)
 
-    # SOLUTION: Layer 5: Fully Connected. Input = 84. Output = 10.
-    fc3_W  = tf.Variable(tf.truncated_normal(shape=(84, 10), mean = mu, stddev = sigma))
-    fc3_b  = tf.Variable(tf.zeros(10))
+    # SOLUTION: Layer 5: Fully Connected. Input = 84. Output = n_classes.
+    fc3_W  = tf.Variable(tf.truncated_normal(shape=(84, n_classes), mean = mu, stddev = sigma))
+    fc3_b  = tf.Variable(tf.zeros(n_classes))
     logits = tf.matmul(fc2, fc3_W) + fc3_b
     
     return logits
@@ -144,7 +145,7 @@ def LeNet(x):
 
 x = tf.placeholder(tf.float32, (None, 32, 32, 3))
 y = tf.placeholder(tf.int32, (None))
-one_hot_y = tf.one_hot(y, 10)
+one_hot_y = tf.one_hot(y, n_classes)
 
 rate = 0.001
 
