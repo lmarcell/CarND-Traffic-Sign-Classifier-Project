@@ -76,7 +76,7 @@ X_train, y_train = shuffle(X_train, y_train)
 
 import tensorflow as tf
 
-EPOCHS = 25
+EPOCHS = 60
 BATCH_SIZE = 128
 
 from tensorflow.contrib.layers import flatten
@@ -128,6 +128,9 @@ def LeNet(x):
     # SOLUTION: Activation.
     fc2    = tf.nn.relu(fc2)
 
+    # Add drop out
+    fc2 = tf.nn.dropout(fc2, keep_prob)
+
     # SOLUTION: Layer 5: Fully Connected. Input = 84. Output = n_classes.
     fc3_W  = tf.Variable(tf.truncated_normal(shape=(84, n_classes), mean = mu, stddev = sigma))
     fc3_b  = tf.Variable(tf.zeros(n_classes))
@@ -146,8 +149,10 @@ def LeNet(x):
 x = tf.placeholder(tf.float32, (None, 32, 32, 3))
 y = tf.placeholder(tf.int32, (None))
 one_hot_y = tf.one_hot(y, n_classes)
+keep_prob = tf.placeholder(tf.float32) # probability to keep units
 
 rate = 0.001
+keep_probability = 0.5
 
 logits = LeNet(x)
 cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=one_hot_y, logits=logits)
@@ -165,7 +170,7 @@ def evaluate(X_data, y_data):
     sess = tf.get_default_session()
     for offset in range(0, num_examples, BATCH_SIZE):
         batch_x, batch_y = X_data[offset:offset+BATCH_SIZE], y_data[offset:offset+BATCH_SIZE]
-        accuracy = sess.run(accuracy_operation, feed_dict={x: batch_x, y: batch_y})
+        accuracy = sess.run(accuracy_operation, feed_dict={x: batch_x, y: batch_y, keep_prob: keep_probability})
         total_accuracy += (accuracy * len(batch_x))
     return total_accuracy / num_examples
 
@@ -180,7 +185,7 @@ with tf.Session() as sess:
         for offset in range(0, num_examples, BATCH_SIZE):
             end = offset + BATCH_SIZE
             batch_x, batch_y = X_train[offset:end], y_train[offset:end]
-            sess.run(training_operation, feed_dict={x: batch_x, y: batch_y})
+            sess.run(training_operation, feed_dict={x: batch_x, y: batch_y, keep_prob: keep_probability})
             
         validation_accuracy = evaluate(X_validation, y_validation)
         print("EPOCH {} ...".format(i+1))
