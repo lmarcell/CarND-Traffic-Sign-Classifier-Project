@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import cv2
+import numpy as np
+
 # Step 0: Load The Data
 
 # Load pickled data
@@ -22,7 +25,20 @@ X_train, y_train = train['features'], train['labels']
 X_validation, y_validation = valid['features'], valid['labels']
 X_test, y_test = test['features'], test['labels']
 
-print(X_train[0].shape)
+X_train_gray = np.zeros((X_train.shape[0], X_train.shape[1], X_train.shape[2], 1), dtype=type(X_train[0][0][0][0]))
+X_validation_gray = np.zeros((X_validation.shape[0], X_validation.shape[1], X_validation.shape[2], 1), dtype=type(X_validation[0][0][0][0]))
+X_test_gray = np.zeros((X_test.shape[0], X_test.shape[1], X_test.shape[2], 1), dtype=type(X_test[0][0][0][0]))
+
+print(X_train_gray.shape)
+
+for i in range(0, X_train.shape[0]):
+    X_train_gray[i] = np.array(list(map(lambda x : list(map(lambda x : [x], x)), np.dot(X_train[i], [1,1,1]))))
+
+for i in range(0, X_validation.shape[0]):
+    X_validation_gray[i] = np.array(list(map(lambda x : list(map(lambda x : [x], x)), np.dot(X_validation[i], [1,1,1]))))
+
+for i in range(0, X_test.shape[0]):
+    X_test_gray[i] = np.array(list(map(lambda x : list(map(lambda x : [x], x)), np.dot(X_test[i], [1,1,1]))))
 
 assert(len(X_train) == len(y_train))
 assert(len(X_validation) == len(y_validation))
@@ -88,7 +104,7 @@ def LeNet(x):
 
     
     # SOLUTION: Layer 1: Convolutional. Input = 32x32x1. Output = 28x28x6.
-    conv1_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 3, 6), mean = mu, stddev = sigma))
+    conv1_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 1, 6), mean = mu, stddev = sigma))
     conv1_b = tf.Variable(tf.zeros(6))
     conv1   = tf.nn.conv2d(x, conv1_W, strides=[1, 1, 1, 1], padding='VALID') + conv1_b
 
@@ -146,7 +162,7 @@ def LeNet(x):
 ### the accuracy on the test set should be calculated and reported as well.
 ### Feel free to use as many code cells as needed.
 
-x = tf.placeholder(tf.float32, (None, 32, 32, 3))
+x = tf.placeholder(tf.float32, (None, 32, 32, 1))
 y = tf.placeholder(tf.int32, (None))
 one_hot_y = tf.one_hot(y, n_classes)
 keep_prob = tf.placeholder(tf.float32) # probability to keep units
@@ -179,15 +195,15 @@ with tf.Session() as sess:
     num_examples = len(X_train)
     
     print("Training...")
-    print()
+    print(len(X_train_gray))
     for i in range(EPOCHS):
-        X_train, y_train = shuffle(X_train, y_train)
+        X_train, y_train = shuffle(X_train_gray, y_train)
         for offset in range(0, num_examples, BATCH_SIZE):
             end = offset + BATCH_SIZE
-            batch_x, batch_y = X_train[offset:end], y_train[offset:end]
+            batch_x, batch_y = X_train_gray[offset:end], y_train[offset:end]
             sess.run(training_operation, feed_dict={x: batch_x, y: batch_y, keep_prob: keep_probability})
             
-        validation_accuracy = evaluate(X_validation, y_validation)
+        validation_accuracy = evaluate(X_validation_gray, y_validation)
         print("EPOCH {} ...".format(i+1))
         print("Validation Accuracy = {:.3f}".format(validation_accuracy))
         print()
@@ -198,5 +214,5 @@ with tf.Session() as sess:
 with tf.Session() as sess:
     saver.restore(sess, tf.train.latest_checkpoint('.'))
 
-    test_accuracy = evaluate(X_test, y_test)
+    test_accuracy = evaluate(X_test_gray, y_test)
     print("Test Accuracy = {:.3f}".format(test_accuracy))
