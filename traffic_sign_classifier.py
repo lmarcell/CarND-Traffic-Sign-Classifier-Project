@@ -7,6 +7,29 @@ import numpy as np
 
 # Load pickled data
 import pickle
+import sys
+import numpy as np
+from random import seed, random
+from scipy.ndimage.interpolation import rotate
+import math
+from skimage.transform import resize
+
+def Normalize(x):
+    return (x.astype(float) - 128) / 128
+
+def AugmentTestDataByRandomRotatedData(n_times):
+    X_train_aug = np.zeros([n_times, 32, 32, 3])
+    y_train_aug = np.zeros([n_times])
+    for i in range(n_times):
+        seed(1)
+        index_to_rotate = math.ceil(random() * (len(X_test) - 1))
+        image_to_rotate = X_train[index_to_rotate]
+        class_of_image = y_train[index_to_rotate]
+        seed(1)
+        angle = -180 + (random() * 360)
+        X_train_aug[i] = resize(rotate(image_to_rotate, angle=45), (32,32))
+        y_train_aug[i] = class_of_image
+    return X_train_aug, y_train_aug
 
 import matplotlib.pyplot as plt
 from random import seed, random
@@ -42,6 +65,7 @@ X_train, y_train = train['features'], train['labels']
 X_validation, y_validation = valid['features'], valid['labels']
 X_test, y_test = test['features'], test['labels']
 
+
 #Normalize inputs
 X_train = Normalize(X_train)
 X_validation = Normalize(X_validation)
@@ -73,6 +97,29 @@ X_test_gray = HistogramEqualize(X_test_gray)
 assert(len(X_train_gray) == len(y_train))
 assert(len(X_validation_gray) == len(y_validation))
 assert(len(X_test_gray) == len(y_test))
+
+#Augment X_train
+X_train_aug, y_train_aug = AugmentTestDataByRandomRotatedData(20000)
+
+X_train = np.append(X_train, X_train_aug, axis=0)
+y_train = np.append(y_train, y_train_aug)
+
+assert(len(X_train) == len(y_train))
+assert(len(X_validation) == len(y_validation))
+assert(len(X_test) == len(y_test))
+
+print("After augmentation: ")
+print(len(X_train))
+
+#Normalize inputs
+X_train = Normalize(X_train)
+X_validation = Normalize(X_validation)
+X_test = Normalize(X_test)
+
+# Set zero mean to inputs
+X_train -= np.mean(X_train)
+X_validation -= np.mean(X_validation)
+X_test -= np.mean(X_test)
 
 # Step 1: Dataset Summary & Exploration
 
@@ -187,6 +234,9 @@ def LeNet(x):
 
     # Add drop out
     fc2 = tf.nn.dropout(fc2, keep_prob)
+
+    # SOLUTION: Activation.
+    fc2    = tf.nn.relu(fc2)
 
     # SOLUTION: Layer 5: Fully Connected. Input = 84. Output = n_classes.
     fc3_W  = tf.Variable(tf.truncated_normal(shape=(84, n_classes), mean = mu, stddev = sigma))
