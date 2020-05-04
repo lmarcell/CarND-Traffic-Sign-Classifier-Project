@@ -8,7 +8,13 @@ import numpy as np
 # Load pickled data
 import pickle
 
+import matplotlib.pyplot as plt
+import sys
+
 # TODO: Fill this in based on where you saved the training and testing data
+
+def Normalize(x):
+    return (x.astype(float) - 128) / 128
 
 training_file = "traffic-signs-data/train.p"
 validation_file = "traffic-signs-data/valid.p"
@@ -29,8 +35,6 @@ X_train_gray = np.zeros((X_train.shape[0], X_train.shape[1], X_train.shape[2], 1
 X_validation_gray = np.zeros((X_validation.shape[0], X_validation.shape[1], X_validation.shape[2], 1), dtype=type(X_validation[0][0][0][0]))
 X_test_gray = np.zeros((X_test.shape[0], X_test.shape[1], X_test.shape[2], 1), dtype=type(X_test[0][0][0][0]))
 
-print(X_train_gray.shape)
-
 for i in range(0, X_train.shape[0]):
     X_train_gray[i] = np.array(list(map(lambda x : list(map(lambda x : [x], x)), np.dot(X_train[i], [1,1,1]))))
 
@@ -43,6 +47,16 @@ for i in range(0, X_test.shape[0]):
 assert(len(X_train) == len(y_train))
 assert(len(X_validation) == len(y_validation))
 assert(len(X_test) == len(y_test))
+
+#Normalize inputs
+X_train_gray = Normalize(X_train_gray)
+X_validation_gray = Normalize(X_validation_gray)
+X_test_gray = Normalize(X_test_gray)
+
+# Set zero mean to inputs
+X_train_gray -= np.mean(X_train_gray)
+X_validation_gray -= np.mean(X_validation_gray)
+X_test_gray -= np.mean(X_test_gray)
  
 # Step 1: Dataset Summary & Exploration
 
@@ -83,7 +97,7 @@ import matplotlib.pyplot as plt
 
 from sklearn.utils import shuffle
 
-X_train, y_train = shuffle(X_train, y_train)
+X_train_gray, y_train = shuffle(X_train_gray, y_train)
 
 # Model Architecture
 
@@ -197,7 +211,7 @@ with tf.Session() as sess:
     print("Training...")
     print(len(X_train_gray))
     for i in range(EPOCHS):
-        X_train, y_train = shuffle(X_train_gray, y_train)
+        X_train_gray, y_train = shuffle(X_train_gray, y_train)
         for offset in range(0, num_examples, BATCH_SIZE):
             end = offset + BATCH_SIZE
             batch_x, batch_y = X_train_gray[offset:end], y_train[offset:end]
