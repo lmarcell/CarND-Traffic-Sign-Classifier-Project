@@ -9,13 +9,24 @@ import numpy as np
 import pickle
 
 import matplotlib.pyplot as plt
+from random import seed, random
+
+from skimage import exposure
+from skimage.transform import resize
+from scipy.ndimage.interpolation import rotate
+
 import sys
+import math
+
 
 # TODO: Fill this in based on where you saved the training and testing data
 
 def Normalize(x):
     return (x.astype(float) - 128) / 128
 
+def HistogramEqualize(img):
+    img_cdf, bin_centers = exposure.cumulative_distribution(img)
+    return np.interp(img, bin_centers, img_cdf)
 training_file = "traffic-signs-data/train.p"
 validation_file = "traffic-signs-data/valid.p"
 testing_file = "traffic-signs-data/test.p"
@@ -26,10 +37,21 @@ with open(validation_file, mode='rb') as f:
     valid = pickle.load(f)
 with open(testing_file, mode='rb') as f:
     test = pickle.load(f)
-    
+
 X_train, y_train = train['features'], train['labels']
 X_validation, y_validation = valid['features'], valid['labels']
 X_test, y_test = test['features'], test['labels']
+
+#Normalize inputs
+X_train = Normalize(X_train)
+X_validation = Normalize(X_validation)
+X_test = Normalize(X_test)
+
+# Set zero mean to inputs
+X_train -= np.mean(X_train)
+X_validation -= np.mean(X_validation)
+X_test -= np.mean(X_test)
+
 
 X_train_gray = np.zeros((X_train.shape[0], X_train.shape[1], X_train.shape[2], 1), dtype=type(X_train[0][0][0][0]))
 X_validation_gray = np.zeros((X_validation.shape[0], X_validation.shape[1], X_validation.shape[2], 1), dtype=type(X_validation[0][0][0][0]))
@@ -44,27 +66,21 @@ for i in range(0, X_validation.shape[0]):
 for i in range(0, X_test.shape[0]):
     X_test_gray[i] = np.array(list(map(lambda x : list(map(lambda x : [x], x)), np.dot(X_test[i], [1,1,1]))))
 
-assert(len(X_train) == len(y_train))
-assert(len(X_validation) == len(y_validation))
-assert(len(X_test) == len(y_test))
+X_train_gray = HistogramEqualize(X_train_gray)
+X_validation_gray = HistogramEqualize(X_validation_gray)
+X_test_gray = HistogramEqualize(X_test_gray)
 
-#Normalize inputs
-X_train_gray = Normalize(X_train_gray)
-X_validation_gray = Normalize(X_validation_gray)
-X_test_gray = Normalize(X_test_gray)
+assert(len(X_train_gray) == len(y_train))
+assert(len(X_validation_gray) == len(y_validation))
+assert(len(X_test_gray) == len(y_test))
 
-# Set zero mean to inputs
-X_train_gray -= np.mean(X_train_gray)
-X_validation_gray -= np.mean(X_validation_gray)
-X_test_gray -= np.mean(X_test_gray)
- 
 # Step 1: Dataset Summary & Exploration
 
 ### Replace each question mark with the appropriate value. 
 ### Use python, pandas or numpy methods rather than hard coding the results
 
 # TODO: Number of training examples
-n_train = len(X_train)
+n_train = len(X_train_gray)
 
 # TODO: Number of validation examples
 n_validation = len(X_validation)
@@ -106,8 +122,8 @@ X_train_gray, y_train = shuffle(X_train_gray, y_train)
 
 import tensorflow as tf
 
-EPOCHS = 60
-BATCH_SIZE = 128
+EPOCHS = 25
+BATCH_SIZE = 42
 
 from tensorflow.contrib.layers import flatten
 
@@ -117,44 +133,55 @@ def LeNet(x):
     sigma = 0.1
 
     
-    # SOLUTION: Layer 1: Convolutional. Input = 32x32x1. Output = 28x28x6.
-    conv1_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 1, 6), mean = mu, stddev = sigma))
-    conv1_b = tf.Variable(tf.zeros(6))
+    # SOLUTION: Layer 1: Convolutional. Input = 32x32x1. Output = 28x28x40.
+    conv1_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 1, 40), mean = mu, stddev = sigma))
+    conv1_b = tf.Variable(tf.zeros(40))
     conv1   = tf.nn.conv2d(x, conv1_W, strides=[1, 1, 1, 1], padding='VALID') + conv1_b
 
     # SOLUTION: Activation.
     conv1 = tf.nn.relu(conv1)
 
-    # SOLUTION: Pooling. Input = 28x28x6. Output = 14x14x6.
+    # SOLUTION: Pooling. Input = 28x28x40. Output = 14x14x40.
     conv1 = tf.nn.max_pool(conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
-
-    # SOLUTION: Layer 2: Convolutional. Output = 10x10x16.
-    conv2_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 6, 16), mean = mu, stddev = sigma))
-    conv2_b = tf.Variable(tf.zeros(16))
-    conv2   = tf.nn.conv2d(conv1, conv2_W, strides=[1, 1, 1, 1], padding='VALID') + conv2_b
     
+    # SOLUTION: Layer 2: Convolutional. Input = 14x14x40. Output = 10x10x70.
+    conv2_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 40, 70), mean = mu, stddev = sigma))
+    conv2_b = tf.Variable(tf.zeros(70))
+    conv2   = tf.nn.conv2d(conv1, conv2_W, strides=[1, 1, 1, 1], padding='VALID') + conv2_b
+
     # SOLUTION: Activation.
     conv2 = tf.nn.relu(conv2)
 
-    # SOLUTION: Pooling. Input = 10x10x16. Output = 5x5x16.
-    conv2 = tf.nn.max_pool(conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+    # SOLUTION: Layer 3: Convolutional. Output = 6x6x110.
+    conv3_W = tf.Variable(tf.truncated_normal(shape=(5, 5, 70, 110), mean = mu, stddev = sigma))
+    conv3_b = tf.Variable(tf.zeros(110))
+    conv3   = tf.nn.conv2d(conv2, conv3_W, strides=[1, 1, 1, 1], padding='VALID') + conv3_b
 
-    # SOLUTION: Flatten. Input = 5x5x16. Output = 400.
-    fc0   = flatten(conv2)
+    # SOLUTION: Activation.
+    conv3 = tf.nn.relu(conv3)
+
+    # SOLUTION: Pooling. Input = 6x6x110. Output = 3x3x110.
+    conv3 = tf.nn.max_pool(conv3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+
+    # SOLUTION: Flatten. Input = 3x3x110. Output = 990.
+    fc0   = flatten(conv3)
     
-    # SOLUTION: Layer 3: Fully Connected. Input = 400. Output = 120.
-    fc1_W = tf.Variable(tf.truncated_normal(shape=(400, 120), mean = mu, stddev = sigma))
-    fc1_b = tf.Variable(tf.zeros(120))
+    # SOLUTION: Layer 3: Fully Connected. Input = 990. Output = 400.
+    fc1_W = tf.Variable(tf.truncated_normal(shape=(990, 400), mean = mu, stddev = sigma))
+    fc1_b = tf.Variable(tf.zeros(400))
     fc1   = tf.matmul(fc0, fc1_W) + fc1_b
 
     # SOLUTION: Activation.
     fc1    = tf.nn.relu(fc1)
 
-    # SOLUTION: Layer 4: Fully Connected. Input = 120. Output = 84.
-    fc2_W  = tf.Variable(tf.truncated_normal(shape=(120, 84), mean = mu, stddev = sigma))
+    # Add drop out
+    fc1 = tf.nn.dropout(fc1, keep_prob)
+
+    # SOLUTION: Layer 4: Fully Connected. Input = 400. Output = 84.
+    fc2_W  = tf.Variable(tf.truncated_normal(shape=(400, 84), mean = mu, stddev = sigma))
     fc2_b  = tf.Variable(tf.zeros(84))
     fc2    = tf.matmul(fc1, fc2_W) + fc2_b
-    
+
     # SOLUTION: Activation.
     fc2    = tf.nn.relu(fc2)
 
